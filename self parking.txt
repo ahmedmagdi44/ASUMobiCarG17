@@ -1,0 +1,206 @@
+#include <FiniteStateMachine.h>
+
+const int sideSensor = 5;
+const int backSensor = 6;
+const int frontSensor = 7;
+
+const int FORWARD_DURATION = 3000;
+const byte state = 3;
+unsigned long startTime;
+
+//initialize states
+State LOCATE_REAR_OF_BAY = State(fLOCATE_REAR_OF_BAY);
+State INITIAL = State(fINITIAL);
+State MOVE_TO_READY_POSITION = State(fMOVE_TO_READY_POSITION);
+
+FSM ledStateMachine = FSM(On);     //initialize state machine, start in state: On
+
+void setup() {
+  
+  Serial.begin(9600);
+  
+  //Setup Channel A
+  pinMode(12, OUTPUT); //Initiates Motor Channel A pin
+  pinMode(9, OUTPUT); //Initiates Brake Channel A pin
+
+  //Setup Channel B
+  pinMode(13, OUTPUT); //Initiates Motor Channel A pin
+  pinMode(8, OUTPUT);  //Initiates Brake Channel A pin
+  
+}
+
+void loop(){
+
+  long duration1, cm1;
+  pinMode(sideSensor, OUTPUT);
+  digitalWrite(sideSensor, LOW);
+  delayMicroseconds(2);
+  digitalWrite(sideSensor, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(sideSensor, LOW);
+  pinMode(sideSensor, INPUT);
+  duration1 = pulseIn(sideSensor, HIGH);
+  cm1 = microsecondsToCentimeters(duration1);
+  int sideDist = cm1;
+  delayMicroseconds(50);
+    
+  long duration2, cm2;
+  pinMode(backSensor, OUTPUT);
+  digitalWrite(backSensor, LOW);
+  delayMicroseconds(2);
+  digitalWrite(backSensor, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(backSensor, LOW);
+  pinMode(backSensor, INPUT);
+  duration2 = pulseIn(backSensor, HIGH);
+  cm2 = microsecondsToCentimeters(duration2);
+  int backDist = cm2;
+  delayMicroseconds(50);
+  
+  long duration3, cm3;
+  pinMode(frontSensor, OUTPUT);
+  digitalWrite(frontSensor, LOW);
+  delayMicroseconds(2);
+  digitalWrite(frontSensor, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(frontSensor, LOW);
+  pinMode(frontSensor, INPUT);
+  duration3 = pulseIn(frontSensor, HIGH);
+  cm3 = microsecondsToCentimeters(duration3);
+  int frontDist = cm3;
+  delayMicroseconds(50);
+  
+  switch(state)
+{
+    case INITIAL:
+        // we assume there is a line of parked vehicles to our right, with an empty bay somewhere in front of us
+        moveForwards();
+        state = LOCATE_REAR_OF_BAY;
+        break;
+    case LOCATE_REAR_OF_BAY: 
+        // keep moving forwards until we detect an opening beside us
+        if(sideDist > 20)
+        {
+            // opening found
+            // keep moving forward
+            startTime = millis();  // start counting time (distance)
+            state = MOVE_TO_READY_POSITION;
+        }
+        else if(sideDist < 20)
+        {
+            // vehicle found
+            // keep moving forward a bit further
+           state = INITIAL;     
+        }
+        break;
+        
+    case MOVE_TO_READY_POSITION:
+        // move past the bay slightly before trying to reverse into it
+        // here the distance is defined by how long we move forward for
+        if(millis() - startTime >= FORWARD_DURATION)
+        {
+            // we have moved forward far enough, start reversing into the bay
+            stop();
+            reverseRight();
+            state = REVERSING_RIGHT;
+        }
+        else if(millis() - startTime < FORWARD_DURATION)
+        {
+            // space is not big enough to park
+            state = LOCATE_REAR_OF_BAY;
+        }
+        break;
+}
+
+/*  
+  if (sideDist < 20 && state ==0) {
+    forward();
+  }
+    else {
+      forward();
+    currentMillis = millis();
+    }
+    
+    if(sideDist >= 20 && state == 0 && currentMillis >= threshold || currentMillis - previousMillis >= threshold) {
+     previousMillis = currentMillis;    
+     stopping();
+     revright();
+     state=1;
+  }
+    
+  if(backDist > 5 && state==1) {
+    revright();
+  }
+  else if(backDist <= 5 && state==1) {
+    stopping();
+    state=2;
+  }
+  
+  if(frontDist > 5 && state==2) {
+    forleft();
+  }
+  else if(frontDist=backDist && state==2) {
+    stopping();
+    state=3;
+  }
+  
+  if(state == 3) {
+    while(1);
+  }
+*/
+  Serial.print("Side ");
+  Serial.print(cm1);
+  Serial.print(" || Back ");
+  Serial.print(cm2);
+  Serial.print(" || Front ");
+  Serial.println(cm3);
+  Serial.print("State ");
+  Serial.print(state);
+  Serial.print("\t"); 
+  Serial.print(" || Current ");
+  Serial.print(currentMillis);
+  Serial.print("\t"); 
+  Serial.print(" || Previous ");
+  Serial.println(previousMillis);
+  delay(500);
+}
+void moveForwards()  {
+  //Motor A forward @ full speed
+  digitalWrite(12, LOW); //Establishes forward direction of Channel A
+  digitalWrite(9, LOW);   //Disengage the Brake for Channel A
+  analogWrite(3, 255);   //Spins the motor on Channel A at full speed
+}
+void stopping()  {
+    
+  digitalWrite(9, HIGH);  //Engage the Brake for Channel A
+  digitalWrite(8, HIGH);  //Engage the Brake for Channel B
+}
+void reverseRight()()  {
+  digitalWrite(12, HIGH); //Establishes forward direction of Channel A
+  digitalWrite(9, LOW);   //Disengage the Brake for Channel A
+  analogWrite(3, 255);   //Spins the motor on Channel A at full speed
+  digitalWrite(13, HIGH);  //Establishes backward direction of Channel B
+  digitalWrite(8, LOW);   //Disengage the Brake for Channel B
+  analogWrite(11, 255);    //Spins the motor on Channel B at half speed
+}
+void forleft()  {
+  digitalWrite(12, LOW); //Establishes forward direction of Channel A
+  digitalWrite(9, LOW);   //Disengage the Brake for Channel A
+  analogWrite(3, 255);   //Spins the motor on Channel A at full speed
+  digitalWrite(13, LOW);  //Establishes backward direction of Channel BDD
+  digitalWrite(8, LOW);   //Disengage the Brake for Channel B
+  analogWrite(11, 255);    //Spins the motor on Channel B at half speed
+}
+void reverse()  {
+  //Motor A forward @ full speed
+  digitalWrite(12, HIGH); //Establishes forward direction of Channel A
+  digitalWrite(9, LOW);   //Disengage the Brake for Channel A
+  analogWrite(3, 255);   //Spins the motor on Channel A at full speed
+}
+long microsecondsToCentimeters(long microseconds)
+{
+  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
+  // The ping travels out and back, so to find the distance of the
+  // object we take half of the distance travelled.
+  return microseconds / 29 / 2;
+}
