@@ -1,0 +1,85 @@
+#include <IRremote.h>
+
+int irPin = 11;
+IRrecv irrecv(irPin);
+decode_results results;
+
+int fwdPin = 9; //PWM, pin to set the car moving forward
+int backPin = 10; //PWM
+int leftPin = 2; //pin to turn left
+int rightPin = 3;
+int turboPin = 4; //not being used
+
+//variable definition to IR signals
+long one = 0x10EF38C7; //button 1
+long two = 0x10EFB847; //button 2
+long three = 0x10EF7887; //buttono 3
+long four = 0x10EFF807; //button 4
+long five = 0x10EF02FD; //button 5
+long six = 0x10EF827D; //button 6
+
+long up = 0x10EF609F; //move forward button
+long down = 0x10EFB04F; //move backward button
+long left = 0x10EF906F; //turn left button
+long right = 0x10EF50AF; //turn right button
+long ENTER = 0x10EF9867; //stop the car
+long repeat = 0xFFFFFFFF; //repeat signal
+
+//initial car speed
+int currentSpeed = 0;
+
+//receives an IR signal and compares it with the input value. Returns true if they match and prepares to receive a new IR signal with irrecv.resume()
+boolean check(long hex){
+  if (irrecv.decode(&results)){
+    Serial.println(results.value, HEX);
+    if (results.value == hex){
+      irrecv.resume();
+      return true;
+    }
+  }
+}
+
+//changes the speed of the car
+void changeSpeed(){
+  if (irrecv.decode(&results)){
+    if (results.value == ENTER){
+      currentSpeed=0;
+      analogWrite(fwdPin, 0);
+      analogWrite(backPin, 0);
+      Serial.println("Car stoped and speed set to 0.");
+    }
+    if (results.value == one){
+      currentSpeed=100;
+      Serial.println("Speed changed to 100.");
+    }
+    if (results.value == two){
+      currentSpeed=130;
+      Serial.println("Speed changed to 130.");
+    }
+    if (results.value == three){
+      currentSpeed=160;
+      Serial.println("Speed changed to 160.");
+    }
+    if (results.value == four){
+      currentSpeed=190;
+      Serial.println("Speed changed to 190.");
+    }
+    if (results.value == five){
+      currentSpeed=220;
+      Serial.println("Speed changed to 220.");
+    }
+    if (results.value == six){
+      currentSpeed=255;
+      Serial.println("Speed changed to 255.");
+    }
+    irrecv.resume();
+  }
+}
+
+void setup()
+{
+  pinMode(fwdPin, OUTPUT);
+  pinMode(backPin, OUTPUT);
+  pinMode(leftPin, OUTPUT);
+  pinMode(rightPin, OUTPUT);
+  pinMode(turboPin, OUTPUT);
